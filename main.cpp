@@ -10,7 +10,7 @@ using namespace std;
 const int CARRET_OFFSET = 30 ;
 const int CHAR_WIDTH = 15 ;
 const int CHAR_HEIGHT = 20 ;
-const int MAX_CHARS_PER_LINE = 40 ;
+const int MAX_CHARS_PER_LINE = 50 ;
 const int LINE_WRAP_WIDTH = CHAR_WIDTH * MAX_CHARS_PER_LINE ;
 
 // g++ main.cpp -Iinclude -Llib -lraylib -lopengl32 -lgdi32 -lwinmm -o main.exe && main.exe
@@ -139,6 +139,17 @@ int main() {
                 if (row < charBuffer.size() - 1) {
                     row += 1;
                     col = min(col, static_cast<int>(charBuffer[row].size()));
+                }
+            }
+
+            if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL))
+            {
+                if (IsKeyPressed(KEY_BACKSPACE))
+                {
+                    while (col > 0 && charBuffer[row][col - 1] != ' ') {
+                        col -= 1;
+                        charBuffer[row].pop_back();
+                    }
                 }
             }
 
