@@ -12,7 +12,8 @@ using Action = void (*)(vector<vector<char>> &, int &, int &);
 // Font lnuFont  ;
 // Font textFont ;
 
-// g++ main.cpp -Iinclude -Llib -lraylib -lopengl32 -lgdi32 -lwinmm -o main.exe && main.exe
+// g++ main.cpp -Iinclude -Llib -lraylib -lopengl32 -lgdi32 -lwinmm -o main.exe
+// && main.exe
 
 bool caretVisible = true;
 float caretTimer = 0.0f;
@@ -88,26 +89,32 @@ int main() {
     int key = GetCharPressed();
     int theKey = GetKeyPressed();
 
-    if (theKey > 0) {
+    if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
+      if (IsKeyPressed(KEY_BACKSPACE)) {
+
+        // remove spaces before cursor
+        while (col > 0 && charBuffer[row][col - 1] == ' ') {
+          col--;
+          charBuffer[row].erase(charBuffer[row].begin() + col);
+        }
+
+        // remove the previous word
+        while (col > 0 && charBuffer[row][col - 1] != ' ') {
+          col--;
+          charBuffer[row].erase(charBuffer[row].begin() + col);
+        }
+      }
+    }
+
+    else if (theKey > 0) {
 
       auto it = keyActionMap.find(theKey);
 
       if (it != keyActionMap.end()) {
         Action action = it->second;
         action(charBuffer, row, col);
-      }
-      else {
-        if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
-          if (IsKeyPressed(KEY_BACKSPACE)) {
-            while (col > 0 && charBuffer[row][col - 1] != ' ') {
-              col -= 1;
-              charBuffer[row].pop_back();
-            }
-          }
-        }
-        else {
-          EditorActions::handleCharacterInput(charBuffer, row, col, key);
-        }
+      } else {
+        EditorActions::handleCharacterInput(charBuffer, row, col, key);
       }
     }
 
