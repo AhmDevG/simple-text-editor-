@@ -1,9 +1,8 @@
 #include "./constants.hpp"
 #include "./editor_actions.hpp"
 #include "./include/raylib.h"
-#include <functional>
-#include <iostream>
 #include <map>
+#include <stdio.h>
 #include <vector>
 
 using namespace std;
@@ -131,18 +130,18 @@ int main() {
     }
 
     else if (theKey > 0) {
-       // exclude tabs , shifts , capslook etc.
-
       auto it = keyActionMap.find(theKey);
 
       if (it != keyActionMap.end()) {
-        Action action = it->second;
-        action(charBuffer, row, col);
+        if(IsKeyDown(it->first)) {
+            Action action = it->second;
+            action(charBuffer, row, col);
+        }
+      }
+    }
 
-      }
-      else if(isValidCharacter(key)){
+    if(isValidCharacter(key)){
         EditorActions::handleCharacterInput(charBuffer, row, col, key);
-      }
     }
 
     ClearBackground(BLACK);
