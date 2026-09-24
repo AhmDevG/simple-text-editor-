@@ -15,8 +15,13 @@ class EditorActions {
         static void handleBackspace(vector<vector<char>>& charBuffer, int& row, int& col) {
             if (col > 0) {
                 col--;
-
                 charBuffer[row].erase(charBuffer[row].begin() + col);
+            }
+            else if (row > 0) {
+                col = charBuffer[row - 1].size();
+                charBuffer[row - 1].insert(charBuffer[row - 1].end(), charBuffer[row].begin(), charBuffer[row].end());
+                charBuffer.erase(charBuffer.begin() + row);
+                row--;
             }
         }
 
