@@ -92,16 +92,28 @@ int main() {
     if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
       if (IsKeyPressed(KEY_BACKSPACE)) {
 
-        // remove spaces before cursor
-        while (col > 0 && charBuffer[row][col - 1] == ' ') {
-          col--;
-          charBuffer[row].erase(charBuffer[row].begin() + col);
-        }
 
-        // remove the previous word
-        while (col > 0 && charBuffer[row][col - 1] != ' ') {
-          col--;
-          charBuffer[row].erase(charBuffer[row].begin() + col);
+        if (col > 0) {
+          // remove spaces before cursor
+          while (col > 0 && charBuffer[row][col - 1] == ' ') {
+            col--;
+            charBuffer[row].erase(charBuffer[row].begin() + col);
+          }
+
+          // remove the previous word
+          while (col > 0 && charBuffer[row][col - 1] != ' ') {
+            col--;
+            charBuffer[row].erase(charBuffer[row].begin() + col);
+          }
+        }
+        // merge the current line with the previous line if the cursor is at the beginning of a line
+        else if (row > 0) {
+          col = charBuffer[row - 1].size();
+          charBuffer[row - 1].insert(charBuffer[row - 1].end(),
+                                     charBuffer[row].begin(),
+                                     charBuffer[row].end());
+          charBuffer.erase(charBuffer.begin() + row);
+          row--;
         }
       }
     }
