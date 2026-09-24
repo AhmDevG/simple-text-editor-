@@ -129,14 +129,13 @@ int main() {
         col = 0;
     }
 
+    // TODO : handle the special chars key repeat
     else if (theKey > 0) {
       auto it = keyActionMap.find(theKey);
 
       if (it != keyActionMap.end()) {
-        if(IsKeyDown(it->first)) {
-            Action action = it->second;
-            action(charBuffer, row, col);
-        }
+        Action action = it->second;
+        action(charBuffer, row, col);
       }
     }
 
