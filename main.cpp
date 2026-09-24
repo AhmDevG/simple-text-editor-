@@ -118,6 +118,14 @@ int main() {
       }
     }
 
+    else if (IsKeyDown(KEY_END)) {
+        col = charBuffer[row].size() ;
+    }
+
+    else if (IsKeyDown(KEY_HOME)) {
+        col = 0;
+    }
+
     else if (theKey > 0) {
 
       auto it = keyActionMap.find(theKey);
