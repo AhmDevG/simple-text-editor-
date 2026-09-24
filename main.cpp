@@ -1,189 +1,128 @@
-#include <iostream>
-#include <vector>
+#include "./constants.hpp"
+#include "./editor_actions.hpp"
 #include "./include/raylib.h"
+#include <functional>
+#include <iostream>
+#include <map>
+#include <vector>
 
 using namespace std;
+using Action = void (*)(vector<vector<char>> &, int &, int &);
 
 // Font lnuFont  ;
 // Font textFont ;
-
-const int CARRET_OFFSET = 30 ;
-const int CHAR_WIDTH = 15 ;
-const int CHAR_HEIGHT = 20 ;
-const int MAX_CHARS_PER_LINE = 50 ;
-const int LINE_WRAP_WIDTH = CHAR_WIDTH * MAX_CHARS_PER_LINE ;
 
 // g++ main.cpp -Iinclude -Llib -lraylib -lopengl32 -lgdi32 -lwinmm -o main.exe && main.exe
 
 bool caretVisible = true;
 float caretTimer = 0.0f;
 
-void showKeyboardCursor(int row , int col) {
-    caretTimer += GetFrameTime();
+void showKeyboardCursor(int row, int col) {
+  caretTimer += GetFrameTime();
 
-    if (caretTimer >= 0.2f) {
-        caretVisible = !caretVisible;
-        caretTimer = 0.0f;
-    }
+  if (caretTimer >= 0.2f) {
+    caretVisible = !caretVisible;
+    caretTimer = 0.0f;
+  }
 
-    if (caretVisible) {
-        int x = (col * CHAR_WIDTH) + CARRET_OFFSET;
-        int y = (row * CHAR_HEIGHT) + CARRET_OFFSET;
+  if (caretVisible) {
+    int x = (col * CHAR_WIDTH) + CARRET_OFFSET;
+    int y = (row * CHAR_HEIGHT) + CARRET_OFFSET;
 
-        DrawLine(
-                x ,
-                y ,
-                x,
-                y + CHAR_HEIGHT ,
-                WHITE
-        ) ;
-    }
+    DrawLine(x, y, x, y + CHAR_HEIGHT, WHITE);
+  }
 }
 
-void showTextBuffer(const vector<vector<char>>& charBuffer) {
-    for (int row = 0; row < charBuffer.size(); ++row) {
-        for (int col = 0; col < charBuffer[row].size(); ++col) {
-            char c = charBuffer[row][col];
-            if (c != '\0') {
-                float x = (col * CHAR_WIDTH) + CARRET_OFFSET;
-                float y = (row * CHAR_HEIGHT) + CARRET_OFFSET;
-
-                char text[2] = {
-                    charBuffer[row][col],
-                    '\0'
-                };
-
-                // DrawTextEx(textFont , text, {x, y}, 20, 0 ,  WHITE);
-                DrawText(text, x, y, 20,  WHITE);
-            }
-        }
-    }
-}
-
-void showLineNumber(const vector<vector<char>>& charBuffer) {
-    for (int row = 0; row < charBuffer.size(); ++row) {
-        float x = CARRET_OFFSET - 20 ;
+void showTextBuffer(const vector<vector<char>> &charBuffer) {
+  for (int row = 0; row < charBuffer.size(); ++row) {
+    for (int col = 0; col < charBuffer[row].size(); ++col) {
+      char c = charBuffer[row][col];
+      if (c != '\0') {
+        float x = (col * CHAR_WIDTH) + CARRET_OFFSET;
         float y = (row * CHAR_HEIGHT) + CARRET_OFFSET;
 
-        char text[10];
-        sprintf(text, "%d", row + 1);
+        char text[2] = {charBuffer[row][col], '\0'};
 
-        DrawText(text, x, y, 20 ,  YELLOW);
+        // DrawTextEx(textFont , text, {x, y}, 20, 0 ,  WHITE);
+        DrawText(text, x, y, 20, WHITE);
+      }
     }
+  }
 }
 
+void showLineNumber(const vector<vector<char>> &charBuffer) {
+  for (int row = 0; row < charBuffer.size(); ++row) {
+    float x = CARRET_OFFSET - 20;
+    float y = (row * CHAR_HEIGHT) + CARRET_OFFSET;
+
+    char text[10];
+    sprintf(text, "%d", row + 1);
+
+    DrawText(text, x, y, 20, YELLOW);
+  }
+}
+
+// the key and the action that can perform with it
+map<int, Action> keyActionMap = {
+    {KEY_ENTER, EditorActions::handleEnter},
+    {KEY_BACKSPACE, EditorActions::handleBackspace},
+    {KEY_LEFT, EditorActions::handleKeyLeft},
+    {KEY_RIGHT, EditorActions::handleKeyRight},
+    {KEY_UP, EditorActions::handleKeyUp},
+    {KEY_DOWN, EditorActions::handleKeyDown}};
 
 int main() {
-    InitWindow(800, 600, "simple text editor");
-    SetTargetFPS(60);
-    vector<vector<char>> charBuffer(1);
+  InitWindow(800, 600, "simple text editor");
+  SetTargetFPS(60);
+  vector<vector<char>> charBuffer(1);
 
-    int row  = 0  ;
-    int col  = 0  ;
+  int row = 0;
+  int col = 0;
 
-    // lnuFont = LoadFontEx("./fonts/Roboto-Bold.ttf" , 30 , nullptr , 0);
-    // textFont = LoadFontEx("./fonts/Roboto-Regular.ttf" , 30 , nullptr , 0);
+  // lnuFont = LoadFontEx("./fonts/Roboto-Bold.ttf" , 30 , nullptr , 0);
+  // textFont = LoadFontEx("./fonts/Roboto-Regular.ttf" , 30 , nullptr , 0);
 
+  while (!WindowShouldClose()) {
+    BeginDrawing();
 
-    while (!WindowShouldClose()) {
-        BeginDrawing();
+    int key = GetCharPressed();
+    int theKey = GetKeyPressed();
 
-        int key = GetCharPressed();
-        int theKey = GetKeyPressed();
+    if (theKey > 0) {
 
-        if (theKey > 0) {
+      auto it = keyActionMap.find(theKey);
 
-            if(theKey == KEY_ENTER) {
-                row += 1;
-                col = 0;
-                charBuffer.push_back(vector<char>());
+      if (it != keyActionMap.end()) {
+        Action action = it->second;
+        action(charBuffer, row, col);
+      }
+      else {
+        if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
+          if (IsKeyPressed(KEY_BACKSPACE)) {
+            while (col > 0 && charBuffer[row][col - 1] != ' ') {
+              col -= 1;
+              charBuffer[row].pop_back();
             }
-
-            else if (theKey == KEY_BACKSPACE) {
-                if (col > 0) {
-                    col -= 1;
-                    charBuffer[row].pop_back();
-                } else if (row > 0) {
-                    row -= 1;
-                    col = charBuffer[row].size();
-                    charBuffer.pop_back();
-                }
-            }
-
-            else if (theKey == KEY_LEFT) {
-                if (col > 0) {
-                    col -= 1;
-                } else if (row > 0) {
-                    row -= 1;
-                    col = charBuffer[row].size();
-                }
-            }
-
-            else if (theKey == KEY_RIGHT) {
-                if (col < charBuffer[row].size()) {
-                    col += 1;
-                } else if (row < charBuffer.size() - 1) {
-                    row += 1;
-                    col = 0;
-                }
-            }
-
-            else if ( theKey == KEY_UP) {
-                if (row > 0) {
-                    row -= 1;
-                    col = min(col, static_cast<int>(charBuffer[row].size()));
-                }
-            }
-
-            else if (theKey == KEY_DOWN) {
-                if (row < charBuffer.size() - 1) {
-                    row += 1;
-                    col = min(col, static_cast<int>(charBuffer[row].size()));
-                }
-            }
-
-            if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL))
-            {
-                if (IsKeyPressed(KEY_BACKSPACE))
-                {
-                    while (col > 0 && charBuffer[row][col - 1] != ' ') {
-                        col -= 1;
-                        charBuffer[row].pop_back();
-                    }
-                }
-            }
-
-
-            else {
-                if (col >= MAX_CHARS_PER_LINE) {
-                    row += 1;
-                    col = 0;
-                    charBuffer.push_back(vector<char>());
-                }
-
-                charBuffer[row].insert(
-                    charBuffer[row].begin() + col,
-                    static_cast<char>(key)
-                );
-
-                col++ ;
-            }
+          }
         }
-
-
-        ClearBackground(BLACK);
-        showKeyboardCursor(row , col) ;
-        showTextBuffer(charBuffer);
-        showLineNumber(charBuffer);
-
-
-        EndDrawing();
+        else {
+          EditorActions::handleCharacterInput(charBuffer, row, col, key);
+        }
+      }
     }
 
-    // UnloadFont(lnuFont) ;
-    // UnloadFont(textFont) ;
+    ClearBackground(BLACK);
+    showKeyboardCursor(row, col);
+    showTextBuffer(charBuffer);
+    showLineNumber(charBuffer);
 
-    CloseWindow();
+    EndDrawing();
+  }
 
-    return 0;
+  // UnloadFont(lnuFont) ;
+  // UnloadFont(textFont) ;
+
+  CloseWindow();
+
+  return 0;
 }
