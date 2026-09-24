@@ -63,6 +63,10 @@ void showLineNumber(const vector<vector<char>> &charBuffer) {
   }
 }
 
+bool isValidCharacter(int key) {
+    return key >= 32 && key <= 126;
+}
+
 // the key and the action that can perform with it
 map<int, Action> keyActionMap = {
     {KEY_ENTER, EditorActions::handleEnter},
@@ -127,13 +131,16 @@ int main() {
     }
 
     else if (theKey > 0) {
+       // exclude tabs , shifts , capslook etc.
 
       auto it = keyActionMap.find(theKey);
 
       if (it != keyActionMap.end()) {
         Action action = it->second;
         action(charBuffer, row, col);
-      } else {
+
+      }
+      else if(isValidCharacter(key)){
         EditorActions::handleCharacterInput(charBuffer, row, col, key);
       }
     }
