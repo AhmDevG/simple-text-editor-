@@ -3,6 +3,7 @@
 #include <string>
 #include <map>
 #include <algorithm>
+#include <iostream>
 #include <cmath>
 
 #define COLOR_BG        CLITERAL(Color){ 30, 30, 30, 255 }
@@ -303,6 +304,13 @@ void handleInput(vector<vector<char>> &buffer, int &row, int &col, TextPos &selS
             }
             selStart = selEnd = { row, col };
         }
+    }
+
+    if (IsKeyTriggeredWithRepeat(KEY_TAB, dt)) {
+        DeleteSelection(buffer, selStart, selEnd, row, col);
+        buffer[row].insert(buffer[row].begin() + col, 4, ' ');
+        col += 4;
+        selStart = selEnd = { row, col };
     }
 
     if (!ctrl) {
