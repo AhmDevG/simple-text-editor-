@@ -15,6 +15,9 @@
 #define COLOR_SELECTION CLITERAL(Color){ 50, 90, 140, 180 }
 #define COLOR_SCROLLBAR CLITERAL(Color){ 70, 70, 70, 255 }
 
+// compile command :
+// g++ main.cpp -Iinclude -Llib -lraylib -lopengl32 -lgdi32 -lwinmm -o main.exe && main.exe
+
 using namespace std;
 
 map<int, float> keyTimers;
