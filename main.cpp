@@ -4,9 +4,7 @@
 #include <map>
 #include <algorithm>
 
-
 using namespace std;
-
 
 #define COLOR_BG        CLITERAL(Color){ 30, 30, 30, 255 }
 #define COLOR_GUTTER    CLITERAL(Color){ 40, 40, 40, 255 }
@@ -15,9 +13,7 @@ using namespace std;
 #define COLOR_CURSOR    CLITERAL(Color){ 80, 160, 240, 255 }
 #define COLOR_LINE_HL   CLITERAL(Color){ 45, 45, 45, 255 }
 
-
 map<int, float> keyTimers;
-
 
 bool IsKeyTriggeredWithRepeat(int key, float dt) {
     const float INITIAL_DELAY = 0.35f;
@@ -39,11 +35,9 @@ bool IsKeyTriggeredWithRepeat(int key, float dt) {
     return false;
 }
 
-
 void handleInput(vector<vector<char>> &buffer, int &row, int &col) {
     float dt = GetFrameTime();
     bool ctrl = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
-
 
     if (ctrl && IsKeyPressed(KEY_C)) {
         string lineText(buffer[row].begin(), buffer[row].end());
@@ -89,14 +83,8 @@ void handleInput(vector<vector<char>> &buffer, int &row, int &col) {
         return;
     }
 
-
-    if (IsKeyTriggeredWithRepeat(KEY_HOME, dt)) {
-        col = 0;
-    }
-    if (IsKeyTriggeredWithRepeat(KEY_END, dt)) {
-        col = (int)buffer[row].size();
-    }
-
+    if (IsKeyTriggeredWithRepeat(KEY_HOME, dt)) col = 0;
+    if (IsKeyTriggeredWithRepeat(KEY_END, dt)) col = (int)buffer[row].size();
 
     if (ctrl && IsKeyTriggeredWithRepeat(KEY_BACKSPACE, dt)) {
         if (col > 0) {
@@ -111,8 +99,7 @@ void handleInput(vector<vector<char>> &buffer, int &row, int &col) {
             row--;
             col = prevSize;
         }
-    }
-    else if (!ctrl && IsKeyTriggeredWithRepeat(KEY_BACKSPACE, dt)) {
+    } else if (!ctrl && IsKeyTriggeredWithRepeat(KEY_BACKSPACE, dt)) {
         if (col > 0) {
             buffer[row].erase(buffer[row].begin() + col - 1);
             col--;
@@ -134,7 +121,6 @@ void handleInput(vector<vector<char>> &buffer, int &row, int &col) {
         }
     }
 
-
     if (!ctrl) {
         int key = GetCharPressed();
         while (key > 0) {
@@ -145,7 +131,6 @@ void handleInput(vector<vector<char>> &buffer, int &row, int &col) {
             key = GetCharPressed();
         }
     }
-
 
     if (IsKeyTriggeredWithRepeat(KEY_ENTER, dt)) {
         vector<char> remainingText(buffer[row].begin() + col, buffer[row].end());
@@ -172,11 +157,12 @@ void handleInput(vector<vector<char>> &buffer, int &row, int &col) {
 }
 
 
-void drawTextEditor(const vector<vector<char>> &buffer, int row, int col) {
+void drawTextEditor(const vector<vector<char>> &buffer, int row, int col, Font font) {
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
 
-    const int fontSize = 20;
+    const float fontSize = 22.0f;
+    const float fontSpacing = 1.0f;
     const int lineSpacing = 28;
     const int paddingTop = 20;
     const int gutterWidth = 60;
@@ -193,12 +179,15 @@ void drawTextEditor(const vector<vector<char>> &buffer, int row, int col) {
 
 
     for (size_t i = 0; i < buffer.size(); i++) {
-        int yPos = paddingTop + (i * lineSpacing);
+        float yPos = (float)(paddingTop + (i * lineSpacing));
 
-        DrawText(TextFormat("%2zu", i + 1), 15, yPos, fontSize, COLOR_NUMBERS);
+
+        const char *lineNumStr = TextFormat("%2zu", i + 1);
+        DrawTextEx(font, lineNumStr, (Vector2){ 15.0f, yPos }, fontSize, fontSpacing, COLOR_NUMBERS);
+
 
         string lineText(buffer[i].begin(), buffer[i].end());
-        DrawText(lineText.c_str(), gutterWidth + textPaddingLeft, yPos, fontSize, COLOR_TEXT);
+        DrawTextEx(font, lineText.c_str(), (Vector2){ (float)(gutterWidth + textPaddingLeft), yPos }, fontSize, fontSpacing, COLOR_TEXT);
     }
 
 
@@ -206,20 +195,26 @@ void drawTextEditor(const vector<vector<char>> &buffer, int row, int col) {
         int safeCol = min(col, (int)buffer[row].size());
         string textBeforeCursor(buffer[row].begin(), buffer[row].begin() + safeCol);
 
-        int cursorX = gutterWidth + textPaddingLeft + MeasureText(textBeforeCursor.c_str(), fontSize);
-        int cursorY = paddingTop + (row * lineSpacing);
+
+        Vector2 textSize = MeasureTextEx(font, textBeforeCursor.c_str(), fontSize, fontSpacing);
+
+        float cursorX = (float)(gutterWidth + textPaddingLeft) + textSize.x;
+        float cursorY = (float)(paddingTop + (row * lineSpacing));
 
         if ((int)(GetTime() * 2.5f) % 2 == 0) {
-            DrawRectangle(cursorX, cursorY, 2, fontSize, COLOR_CURSOR);
+            DrawRectangle((int)cursorX, (int)cursorY, 2, (int)fontSize, COLOR_CURSOR);
         }
     }
 }
 
-
 int main(void) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    InitWindow(1280, 720, "simple editor with highlighting");
+    InitWindow(1280, 720, "simple text edtior");
     SetTargetFPS(60);
+
+
+    Font font = LoadFontEx("./fonts/JetBrainsMono-Regular.ttf", 44, 0, 250);
+    SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
 
     vector<vector<char>> charBuffer = { {} };
     int cursorRow = 0;
@@ -229,10 +224,12 @@ int main(void) {
         handleInput(charBuffer, cursorRow, cursorCol);
 
         BeginDrawing();
-        drawTextEditor(charBuffer, cursorRow, cursorCol);
+        drawTextEditor(charBuffer, cursorRow, cursorCol, font);
         EndDrawing();
     }
 
+
+    UnloadFont(font);
     CloseWindow();
     return 0;
 }
