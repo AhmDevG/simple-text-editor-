@@ -14,6 +14,9 @@
 #define COLOR_SELECTION CLITERAL(Color){ 50, 90, 140, 180 }
 #define COLOR_SCROLLBAR CLITERAL(Color){ 70, 70, 70, 255 }
 
+// compile command :
+// g++ main.cpp -Iinclude -Llib -lraylib -lopengl32 -lgdi32 -lwinmm -o main.exe && main.exe
+
 using namespace std;
 
 map<int, float> keyTimers;
@@ -263,6 +266,13 @@ void handleInput(vector<vector<char>> &buffer, int &row, int &col, TextPos &selS
     }
 
 
+    if(ctrl && IsKeyPressed(KEY_BACKSPACE)) {
+        TextPos newPos = GetPrevWordPos(buffer, row, col);
+        selStart = newPos;
+        selEnd = { row, col };
+        DeleteSelection(buffer, selStart, selEnd, row, col);
+        return;
+    }
 
 
     if (IsKeyTriggeredWithRepeat(KEY_HOME, dt)) {
@@ -294,9 +304,6 @@ void handleInput(vector<vector<char>> &buffer, int &row, int &col, TextPos &selS
             selStart = selEnd = { row, col };
         }
     }
-
-
-
 
     if (!ctrl) {
         int key = GetCharPressed();
