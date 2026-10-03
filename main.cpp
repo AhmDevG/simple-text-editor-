@@ -1,159 +1,238 @@
-#include "./constants.hpp"
-#include "./editor_actions.hpp"
 #include "./include/raylib.h"
-#include <map>
-#include <stdio.h>
 #include <vector>
+#include <string>
+#include <map>
+#include <algorithm>
+
 
 using namespace std;
-using Action = void (*)(vector<vector<char>> &, int &, int &);
 
-// Font lnuFont  ;
-// Font textFont ;
 
-// g++ main.cpp -Iinclude -Llib -lraylib -lopengl32 -lgdi32 -lwinmm -o main.exe && main.exe
+#define COLOR_BG        CLITERAL(Color){ 30, 30, 30, 255 }
+#define COLOR_GUTTER    CLITERAL(Color){ 40, 40, 40, 255 }
+#define COLOR_TEXT      CLITERAL(Color){ 220, 220, 220, 255 }
+#define COLOR_NUMBERS   CLITERAL(Color){ 100, 100, 100, 255 }
+#define COLOR_CURSOR    CLITERAL(Color){ 80, 160, 240, 255 }
+#define COLOR_LINE_HL   CLITERAL(Color){ 45, 45, 45, 255 }
 
-bool caretVisible = true;
-float caretTimer = 0.0f;
 
-void showKeyboardCursor(int row, int col) {
-  caretTimer += GetFrameTime();
+map<int, float> keyTimers;
 
-  if (caretTimer >= 0.2f) {
-    caretVisible = !caretVisible;
-    caretTimer = 0.0f;
-  }
 
-  if (caretVisible) {
-    int x = (col * CHAR_WIDTH) + CARRET_OFFSET;
-    int y = (row * CHAR_HEIGHT) + CARRET_OFFSET;
+bool IsKeyTriggeredWithRepeat(int key, float dt) {
+    const float INITIAL_DELAY = 0.35f;
+    const float REPEAT_INTERVAL = 0.035f;
 
-    DrawLine(x, y, x, y + CHAR_HEIGHT, WHITE);
-  }
-}
-
-void showTextBuffer(const vector<vector<char>> &charBuffer) {
-  for (int row = 0; row < charBuffer.size(); ++row) {
-    for (int col = 0; col < charBuffer[row].size(); ++col) {
-      char c = charBuffer[row][col];
-      if (c != '\0') {
-        float x = (col * CHAR_WIDTH) + CARRET_OFFSET;
-        float y = (row * CHAR_HEIGHT) + CARRET_OFFSET;
-
-        char text[2] = {charBuffer[row][col], '\0'};
-
-        // DrawTextEx(textFont , text, {x, y}, 20, 0 ,  WHITE);
-        DrawText(text, x, y, 20, WHITE);
-      }
+    if (IsKeyPressed(key)) {
+        keyTimers[key] = 0.0f;
+        return true;
     }
-  }
+    if (IsKeyDown(key)) {
+        keyTimers[key] += dt;
+        if (keyTimers[key] >= INITIAL_DELAY) {
+            keyTimers[key] -= REPEAT_INTERVAL;
+            return true;
+        }
+    } else {
+        keyTimers[key] = 0.0f;
+    }
+    return false;
 }
 
-void showLineNumber(const vector<vector<char>> &charBuffer) {
-  for (int row = 0; row < charBuffer.size(); ++row) {
-    float x = CARRET_OFFSET - 20;
-    float y = (row * CHAR_HEIGHT) + CARRET_OFFSET;
 
-    char text[10];
-    sprintf(text, "%d", row + 1);
-
-    DrawText(text, x, y, 20, YELLOW);
-  }
-}
-
-bool isValidCharacter(int key) {
-    return key >= 32 && key <= 126;
-}
-
-// the key and the action that can perform with it
-map<int, Action> keyActionMap = {
-    {KEY_ENTER, EditorActions::handleEnter},
-    {KEY_BACKSPACE, EditorActions::handleBackspace},
-    {KEY_LEFT, EditorActions::handleKeyLeft},
-    {KEY_RIGHT, EditorActions::handleKeyRight},
-    {KEY_UP, EditorActions::handleKeyUp},
-    {KEY_DOWN, EditorActions::handleKeyDown}};
-
-int main() {
-  InitWindow(800, 600, "simple text editor");
-  SetTargetFPS(60);
-  vector<vector<char>> charBuffer(1);
-
-  int row = 0;
-  int col = 0;
-
-  // lnuFont = LoadFontEx("./fonts/Roboto-Bold.ttf" , 30 , nullptr , 0);
-  // textFont = LoadFontEx("./fonts/Roboto-Regular.ttf" , 30 , nullptr , 0);
-
-  while (!WindowShouldClose()) {
-    BeginDrawing();
-
-    int key = GetCharPressed();
-    int theKey = GetKeyPressed();
-
-    if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
-      if (IsKeyPressed(KEY_BACKSPACE)) {
+void handleInput(vector<vector<char>> &buffer, int &row, int &col) {
+    float dt = GetFrameTime();
+    bool ctrl = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
 
 
+    if (ctrl && IsKeyPressed(KEY_C)) {
+        string lineText(buffer[row].begin(), buffer[row].end());
+        lineText += "\n";
+        SetClipboardText(lineText.c_str());
+        return;
+    }
+
+    if (ctrl && IsKeyPressed(KEY_X)) {
+        string lineText(buffer[row].begin(), buffer[row].end());
+        lineText += "\n";
+        SetClipboardText(lineText.c_str());
+
+        if (buffer.size() > 1) {
+            buffer.erase(buffer.begin() + row);
+            if (row >= (int)buffer.size()) row = (int)buffer.size() - 1;
+            col = min(col, (int)buffer[row].size());
+        } else {
+            buffer[0].clear();
+            col = 0;
+        }
+        return;
+    }
+
+    if (ctrl && IsKeyPressed(KEY_V)) {
+        const char *clipText = GetClipboardText();
+        if (clipText != nullptr) {
+            string text(clipText);
+            for (char c : text) {
+                if (c == '\r') continue;
+                if (c == '\n') {
+                    vector<char> remaining(buffer[row].begin() + col, buffer[row].end());
+                    buffer[row].erase(buffer[row].begin() + col, buffer[row].end());
+                    buffer.insert(buffer.begin() + row + 1, remaining);
+                    row++;
+                    col = 0;
+                } else {
+                    buffer[row].insert(buffer[row].begin() + col, c);
+                    col++;
+                }
+            }
+        }
+        return;
+    }
+
+
+    if (IsKeyTriggeredWithRepeat(KEY_HOME, dt)) {
+        col = 0;
+    }
+    if (IsKeyTriggeredWithRepeat(KEY_END, dt)) {
+        col = (int)buffer[row].size();
+    }
+
+
+    if (ctrl && IsKeyTriggeredWithRepeat(KEY_BACKSPACE, dt)) {
         if (col > 0) {
-          // remove spaces before cursor
-          while (col > 0 && charBuffer[row][col - 1] == ' ') {
-            col--;
-            charBuffer[row].erase(charBuffer[row].begin() + col);
-          }
-
-          // remove the previous word
-          while (col > 0 && charBuffer[row][col - 1] != ' ') {
-            col--;
-            charBuffer[row].erase(charBuffer[row].begin() + col);
-          }
+            int endCol = col;
+            while (col > 0 && buffer[row][col - 1] == ' ') col--;
+            while (col > 0 && buffer[row][col - 1] != ' ') col--;
+            buffer[row].erase(buffer[row].begin() + col, buffer[row].begin() + endCol);
+        } else if (row > 0) {
+            int prevSize = (int)buffer[row - 1].size();
+            buffer[row - 1].insert(buffer[row - 1].end(), buffer[row].begin(), buffer[row].end());
+            buffer.erase(buffer.begin() + row);
+            row--;
+            col = prevSize;
         }
-        // merge the current line with the previous line if the cursor is at the beginning of a line
-        else if (row > 0) {
-          col = charBuffer[row - 1].size();
-          charBuffer[row - 1].insert(charBuffer[row - 1].end(),
-                                     charBuffer[row].begin(),
-                                     charBuffer[row].end());
-          charBuffer.erase(charBuffer.begin() + row);
-          row--;
+    }
+    else if (!ctrl && IsKeyTriggeredWithRepeat(KEY_BACKSPACE, dt)) {
+        if (col > 0) {
+            buffer[row].erase(buffer[row].begin() + col - 1);
+            col--;
+        } else if (row > 0) {
+            int prevSize = (int)buffer[row - 1].size();
+            buffer[row - 1].insert(buffer[row - 1].end(), buffer[row].begin(), buffer[row].end());
+            buffer.erase(buffer.begin() + row);
+            row--;
+            col = prevSize;
         }
-      }
     }
 
-    else if (IsKeyDown(KEY_END)) {
-        col = charBuffer[row].size() ;
+    if (IsKeyTriggeredWithRepeat(KEY_DELETE, dt)) {
+        if (col < (int)buffer[row].size()) {
+            buffer[row].erase(buffer[row].begin() + col);
+        } else if (row < (int)buffer.size() - 1) {
+            buffer[row].insert(buffer[row].end(), buffer[row + 1].begin(), buffer[row + 1].end());
+            buffer.erase(buffer.begin() + row + 1);
+        }
     }
 
-    else if (IsKeyDown(KEY_HOME)) {
+
+    if (!ctrl) {
+        int key = GetCharPressed();
+        while (key > 0) {
+            if (key >= 32 && key <= 126) {
+                buffer[row].insert(buffer[row].begin() + col, (char)key);
+                col++;
+            }
+            key = GetCharPressed();
+        }
+    }
+
+
+    if (IsKeyTriggeredWithRepeat(KEY_ENTER, dt)) {
+        vector<char> remainingText(buffer[row].begin() + col, buffer[row].end());
+        buffer[row].erase(buffer[row].begin() + col, buffer[row].end());
+        buffer.insert(buffer.begin() + row + 1, remainingText);
+        row++;
         col = 0;
     }
 
-    // TODO : handle the special chars key repeat
-    else if (theKey > 0) {
-      auto it = keyActionMap.find(theKey);
+    if (IsKeyTriggeredWithRepeat(KEY_LEFT, dt)) {
+        if (col > 0) col--;
+        else if (row > 0) { row--; col = (int)buffer[row].size(); }
+    }
+    if (IsKeyTriggeredWithRepeat(KEY_RIGHT, dt)) {
+        if (col < (int)buffer[row].size()) col++;
+        else if (row < (int)buffer.size() - 1) { row++; col = 0; }
+    }
+    if (IsKeyTriggeredWithRepeat(KEY_UP, dt)) {
+        if (row > 0) { row--; col = min(col, (int)buffer[row].size()); }
+    }
+    if (IsKeyTriggeredWithRepeat(KEY_DOWN, dt)) {
+        if (row < (int)buffer.size() - 1) { row++; col = min(col, (int)buffer[row].size()); }
+    }
+}
 
-      if (it != keyActionMap.end()) {
-        Action action = it->second;
-        action(charBuffer, row, col);
-      }
+
+void drawTextEditor(const vector<vector<char>> &buffer, int row, int col) {
+    int screenWidth = GetScreenWidth();
+    int screenHeight = GetScreenHeight();
+
+    const int fontSize = 20;
+    const int lineSpacing = 28;
+    const int paddingTop = 20;
+    const int gutterWidth = 60;
+    const int textPaddingLeft = 15;
+
+    ClearBackground(COLOR_BG);
+
+
+    int highlightY = paddingTop + (row * lineSpacing);
+    DrawRectangle(gutterWidth, highlightY, screenWidth - gutterWidth, lineSpacing, COLOR_LINE_HL);
+
+
+    DrawRectangle(0, 0, gutterWidth, screenHeight, COLOR_GUTTER);
+
+
+    for (size_t i = 0; i < buffer.size(); i++) {
+        int yPos = paddingTop + (i * lineSpacing);
+
+        DrawText(TextFormat("%2zu", i + 1), 15, yPos, fontSize, COLOR_NUMBERS);
+
+        string lineText(buffer[i].begin(), buffer[i].end());
+        DrawText(lineText.c_str(), gutterWidth + textPaddingLeft, yPos, fontSize, COLOR_TEXT);
     }
 
-    if(isValidCharacter(key)){
-        EditorActions::handleCharacterInput(charBuffer, row, col, key);
+
+    if (row >= 0 && row < (int)buffer.size()) {
+        int safeCol = min(col, (int)buffer[row].size());
+        string textBeforeCursor(buffer[row].begin(), buffer[row].begin() + safeCol);
+
+        int cursorX = gutterWidth + textPaddingLeft + MeasureText(textBeforeCursor.c_str(), fontSize);
+        int cursorY = paddingTop + (row * lineSpacing);
+
+        if ((int)(GetTime() * 2.5f) % 2 == 0) {
+            DrawRectangle(cursorX, cursorY, 2, fontSize, COLOR_CURSOR);
+        }
+    }
+}
+
+
+int main(void) {
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    InitWindow(1280, 720, "simple editor with highlighting");
+    SetTargetFPS(60);
+
+    vector<vector<char>> charBuffer = { {} };
+    int cursorRow = 0;
+    int cursorCol = 0;
+
+    while (!WindowShouldClose()) {
+        handleInput(charBuffer, cursorRow, cursorCol);
+
+        BeginDrawing();
+        drawTextEditor(charBuffer, cursorRow, cursorCol);
+        EndDrawing();
     }
 
-    ClearBackground(BLACK);
-    showKeyboardCursor(row, col);
-    showTextBuffer(charBuffer);
-    showLineNumber(charBuffer);
-
-    EndDrawing();
-  }
-
-  // UnloadFont(lnuFont) ;
-  // UnloadFont(textFont) ;
-
-  CloseWindow();
-
-  return 0;
+    CloseWindow();
+    return 0;
 }
