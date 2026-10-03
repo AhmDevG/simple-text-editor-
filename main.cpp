@@ -18,7 +18,6 @@ using namespace std;
 
 map<int, float> keyTimers;
 
-
 struct TextPos {
     int row = 0;
     int col = 0;
@@ -53,6 +52,38 @@ bool IsKeyTriggeredWithRepeat(int key, float dt) {
 }
 
 
+
+
+
+
+TextPos GetPrevWordPos(const vector<vector<char>> &buffer, int row, int col) {
+    if (col == 0) {
+        if (row > 0) return { row - 1, (int)buffer[row - 1].size() };
+        return { 0, 0 };
+    }
+    int c = col;
+
+    while (c > 0 && buffer[row][c - 1] == ' ') c--;
+
+    while (c > 0 && buffer[row][c - 1] != ' ') c--;
+    return { row, c };
+}
+
+
+TextPos GetNextWordPos(const vector<vector<char>> &buffer, int row, int col) {
+    int lineSize = (int)buffer[row].size();
+    if (col == lineSize) {
+        if (row < (int)buffer.size() - 1) return { row + 1, 0 };
+        return { row, lineSize };
+    }
+    int c = col;
+
+    while (c < lineSize && buffer[row][c] != ' ') c++;
+
+    while (c < lineSize && buffer[row][c] == ' ') c++;
+    return { row, c };
+}
+
 TextPos GetTextPosFromMouse(Vector2 mousePos, const vector<vector<char>> &buffer, Font font, float fontSize, float fontSpacing, int lineSpacing, int paddingTop, int gutterWidth, int textPaddingLeft, float scrollOffsetY) {
     TextPos pos;
     float adjustedY = mousePos.y + scrollOffsetY - paddingTop;
@@ -69,7 +100,6 @@ TextPos GetTextPosFromMouse(Vector2 mousePos, const vector<vector<char>> &buffer
         return pos;
     }
 
-
     int bestCol = 0;
     float minDiff = 99999.0f;
     for (int c = 0; c <= (int)buffer[pos.row].size(); c++) {
@@ -85,7 +115,6 @@ TextPos GetTextPosFromMouse(Vector2 mousePos, const vector<vector<char>> &buffer
     return pos;
 }
 
-
 void GetNormalizedSelection(TextPos start, TextPos end, TextPos &outStart, TextPos &outEnd) {
     if (start <= end) {
         outStart = start;
@@ -95,7 +124,6 @@ void GetNormalizedSelection(TextPos start, TextPos end, TextPos &outStart, TextP
         outEnd = start;
     }
 }
-
 
 bool DeleteSelection(vector<vector<char>> &buffer, TextPos &selStart, TextPos &selEnd, int &row, int &col) {
     if (selStart == selEnd) return false;
@@ -116,7 +144,6 @@ bool DeleteSelection(vector<vector<char>> &buffer, TextPos &selStart, TextPos &s
     selStart = selEnd = { row, col };
     return true;
 }
-
 
 string GetSelectedText(const vector<vector<char>> &buffer, TextPos selStart, TextPos selEnd) {
     if (selStart == selEnd) return "";
@@ -154,8 +181,6 @@ void handleInput(vector<vector<char>> &buffer, int &row, int &col, TextPos &selS
     Vector2 mousePos = GetMousePosition();
 
 
-
-
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         TextPos clickedPos = GetTextPosFromMouse(mousePos, buffer, font, fontSize, fontSpacing, lineSpacing, paddingTop, gutterWidth, textPaddingLeft, scrollOffsetY);
         row = clickedPos.row;
@@ -163,21 +188,16 @@ void handleInput(vector<vector<char>> &buffer, int &row, int &col, TextPos &selS
         selStart = selEnd = clickedPos;
     }
     else if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-
         selEnd = GetTextPosFromMouse(mousePos, buffer, font, fontSize, fontSpacing, lineSpacing, paddingTop, gutterWidth, textPaddingLeft, scrollOffsetY);
         row = selEnd.row;
         col = selEnd.col;
     }
 
 
-
-
     float wheel = GetMouseWheelMove();
     if (wheel != 0) {
         scrollOffsetY -= wheel * 30.0f;
     }
-
-
 
 
     if (ctrl && IsKeyPressed(KEY_C)) {
@@ -245,6 +265,20 @@ void handleInput(vector<vector<char>> &buffer, int &row, int &col, TextPos &selS
 
 
 
+    if (IsKeyTriggeredWithRepeat(KEY_HOME, dt)) {
+        col = 0;
+        if (shift) selEnd = { row, col };
+        else selStart = selEnd = { row, col };
+    }
+    if (IsKeyTriggeredWithRepeat(KEY_END, dt)) {
+        col = (int)buffer[row].size();
+        if (shift) selEnd = { row, col };
+        else selStart = selEnd = { row, col };
+    }
+
+
+
+
     if (IsKeyTriggeredWithRepeat(KEY_BACKSPACE, dt)) {
         if (!DeleteSelection(buffer, selStart, selEnd, row, col)) {
             if (col > 0) {
@@ -290,30 +324,50 @@ void handleInput(vector<vector<char>> &buffer, int &row, int &col, TextPos &selS
         selStart = selEnd = { row, col };
     }
 
+
     if (IsKeyTriggeredWithRepeat(KEY_LEFT, dt)) {
-        if (col > 0) col--;
-        else if (row > 0) { row--; col = (int)buffer[row].size(); }
-        if (!shift) selStart = selEnd = { row, col };
-        else selEnd = { row, col };
+        if (ctrl) {
+            TextPos newPos = GetPrevWordPos(buffer, row, col);
+            row = newPos.row;
+            col = newPos.col;
+        } else {
+            if (col > 0) col--;
+            else if (row > 0) { row--; col = (int)buffer[row].size(); }
+        }
+
+        if (shift) selEnd = { row, col };
+        else selStart = selEnd = { row, col };
     }
+
+
     if (IsKeyTriggeredWithRepeat(KEY_RIGHT, dt)) {
-        if (col < (int)buffer[row].size()) col++;
-        else if (row < (int)buffer.size() - 1) { row++; col = 0; }
-        if (!shift) selStart = selEnd = { row, col };
-        else selEnd = { row, col };
+        if (ctrl) {
+            TextPos newPos = GetNextWordPos(buffer, row, col);
+            row = newPos.row;
+            col = newPos.col;
+        } else {
+            if (col < (int)buffer[row].size()) col++;
+            else if (row < (int)buffer.size() - 1) { row++; col = 0; }
+        }
+
+        if (shift) selEnd = { row, col };
+        else selStart = selEnd = { row, col };
     }
+
+
     if (IsKeyTriggeredWithRepeat(KEY_UP, dt)) {
         if (row > 0) { row--; col = min(col, (int)buffer[row].size()); }
-        if (!shift) selStart = selEnd = { row, col };
-        else selEnd = { row, col };
+        if (shift) selEnd = { row, col };
+        else selStart = selEnd = { row, col };
     }
+
+
     if (IsKeyTriggeredWithRepeat(KEY_DOWN, dt)) {
         if (row < (int)buffer.size() - 1) { row++; col = min(col, (int)buffer[row].size()); }
-        if (!shift) selStart = selEnd = { row, col };
-        else selEnd = { row, col };
+        if (shift) selEnd = { row, col };
+        else selStart = selEnd = { row, col };
     }
 }
-
 
 void drawTextEditor(const vector<vector<char>> &buffer, int row, int col, TextPos selStart, TextPos selEnd, Font font, float &scrollOffsetY) {
     int screenWidth = GetScreenWidth();
@@ -327,19 +381,15 @@ void drawTextEditor(const vector<vector<char>> &buffer, int row, int col, TextPo
     const int textPaddingLeft = 15;
     const int scrollbarWidth = 12;
 
-
     float totalContentHeight = (float)(buffer.size() * lineSpacing + paddingTop * 2);
     float maxScroll = max(0.0f, totalContentHeight - (float)screenHeight);
     scrollOffsetY = clamp(scrollOffsetY, 0.0f, maxScroll);
-
 
     float cursorY = (float)(paddingTop + row * lineSpacing) - scrollOffsetY;
     if (cursorY < paddingTop) scrollOffsetY = (float)(row * lineSpacing);
     if (cursorY > screenHeight - lineSpacing) scrollOffsetY = (float)(row * lineSpacing - screenHeight + lineSpacing * 2);
 
     ClearBackground(COLOR_BG);
-
-
     BeginScissorMode(0, 0, screenWidth, screenHeight);
 
 
@@ -361,7 +411,6 @@ void drawTextEditor(const vector<vector<char>> &buffer, int row, int col, TextPo
             float xStart = (float)(gutterWidth + textPaddingLeft) + MeasureTextEx(font, textBefore.c_str(), fontSize, fontSpacing).x;
             float selWidth = MeasureTextEx(font, textSelected.c_str(), fontSize, fontSpacing).x;
 
-
             if (selWidth == 0 && r != e.row) selWidth = 10.0f;
 
             float yPos = (float)(paddingTop + r * lineSpacing) - scrollOffsetY;
@@ -372,8 +421,6 @@ void drawTextEditor(const vector<vector<char>> &buffer, int row, int col, TextPo
 
     for (size_t i = 0; i < buffer.size(); i++) {
         float yPos = (float)(paddingTop + (i * lineSpacing)) - scrollOffsetY;
-
-
         if (yPos + lineSpacing < 0 || yPos > screenHeight) continue;
 
         string lineText(buffer[i].begin(), buffer[i].end());
@@ -409,7 +456,6 @@ void drawTextEditor(const vector<vector<char>> &buffer, int row, int col, TextPo
         float thumbHeight = max(30.0f, ((float)screenHeight / totalContentHeight) * screenHeight);
         float thumbY = (scrollOffsetY / maxScroll) * (screenHeight - thumbHeight);
 
-
         DrawRectangle(screenWidth - scrollbarWidth, 0, scrollbarWidth, screenHeight, CLITERAL(Color){ 35, 35, 35, 255 });
         DrawRectangle(screenWidth - scrollbarWidth, (int)thumbY, scrollbarWidth, (int)thumbHeight, COLOR_SCROLLBAR);
     }
@@ -419,10 +465,10 @@ void drawTextEditor(const vector<vector<char>> &buffer, int row, int col, TextPo
 
 int main(void) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    InitWindow(1280, 720, "simple text editor");
+    InitWindow(1280, 720, "simple editor");
     SetTargetFPS(60);
 
-    Font font = LoadFontEx("./fonts/JetBrainsMono-Regular.ttf", 44, 0, 250);
+    Font font = LoadFontEx("./fonts/JetBrainsMono-Medium.ttf", 44, 0, 250);
     SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
 
     vector<vector<char>> charBuffer = { {} };
