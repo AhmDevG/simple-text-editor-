@@ -1,15 +1,28 @@
 #pragma once
 #include <vector>
+#include <iostream>
 #include "./constants.hpp"
 
 using namespace std;
 
 class EditorActions {
     public :
+        // TODO(DONE) : handle the enter when you are a middle of line
+        // get the current col and from this col to the end of the line shift it in the bottom line
         static void handleEnter(vector<vector<char>>& charBuffer, int& row, int& col) {
-            row += 1;
-            col = 0;
-            charBuffer.push_back(vector<char>());
+            if (col == charBuffer[row].size()) {
+                row += 1;
+                col = 0;
+                charBuffer.push_back(vector<char>());
+            }
+            else {
+                // slice from the current col to the end of the line and move it to the next line
+                vector<char> newLine(charBuffer[row].begin() + col, charBuffer[row].end());
+                charBuffer[row].erase(charBuffer[row].begin() + col, charBuffer[row].end());
+                charBuffer.insert(charBuffer.begin() + row + 1, newLine);
+                row += 1;
+                col = 0 ;
+            }
         }
 
         static void handleBackspace(vector<vector<char>>& charBuffer, int& row, int& col) {

@@ -11,8 +11,7 @@ using Action = void (*)(vector<vector<char>> &, int &, int &);
 // Font lnuFont  ;
 // Font textFont ;
 
-// g++ main.cpp -Iinclude -Llib -lraylib -lopengl32 -lgdi32 -lwinmm -o main.exe
-// && main.exe
+// g++ main.cpp -Iinclude -Llib -lraylib -lopengl32 -lgdi32 -lwinmm -o main.exe && main.exe
 
 bool caretVisible = true;
 float caretTimer = 0.0f;
